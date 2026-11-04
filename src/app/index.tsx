@@ -1,62 +1,90 @@
-import * as Device from 'expo-device';
-import { Platform, StyleSheet } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
+import { Image } from "expo-image";
+import { router } from "expo-router";
+import { Pressable, ScrollView, StyleSheet, View } from "react-native";
+import { SafeAreaView } from "react-native-safe-area-context";
 
-import { AnimatedIcon } from '@/components/animated-icon';
-import { HintRow } from '@/components/hint-row';
-import { ThemedText } from '@/components/themed-text';
-import { ThemedView } from '@/components/themed-view';
-import { WebBadge } from '@/components/web-badge';
-import { BottomTabInset, MaxContentWidth, Spacing } from '@/constants/theme';
-
-function getDevMenuHint() {
-  if (Platform.OS === 'web') {
-    return <ThemedText type="small">use browser devtools</ThemedText>;
-  }
-  if (Device.isDevice) {
-    return (
-      <ThemedText type="small">
-        shake device or press <ThemedText type="code">m</ThemedText> in terminal
-      </ThemedText>
-    );
-  }
-  const shortcut = Platform.OS === 'android' ? 'cmd+m (or ctrl+m)' : 'cmd+d';
-  return (
-    <ThemedText type="small">
-      press <ThemedText type="code">{shortcut}</ThemedText>
-    </ThemedText>
-  );
-}
+import { Navbar } from "@/components/navbar";
+import { ThemedText } from "@/components/themed-text";
+import { ThemedView } from "@/components/themed-view";
+import { MaxContentWidth, Spacing } from "@/constants/theme";
 
 export default function HomeScreen() {
   return (
     <ThemedView style={styles.container}>
-      <SafeAreaView style={styles.safeArea}>
-        <ThemedView style={styles.heroSection}>
-          <AnimatedIcon />
-          <ThemedText type="title" style={styles.title}>
-            Welcome to&nbsp;Expo
-          </ThemedText>
-        </ThemedView>
+      <ScrollView contentContainerStyle={styles.scrollContent}>
+        <SafeAreaView style={styles.safeArea}>
+          <Navbar />
 
-        <ThemedText type="code" style={styles.code}>
-          get started
-        </ThemedText>
+          <View style={styles.hero}>
+            <Image
+              accessibilityLabel="UIU campus shuttle at night"
+              contentFit="contain"
+              contentPosition="center"
+              source={require("@/assets/images/logo/hero.png")}
+              style={styles.heroImage}
+            />
 
-        <ThemedView type="backgroundElement" style={styles.stepContainer}>
-          <HintRow
-            title="Try editing"
-            hint={<ThemedText type="code">src/app/index.tsx</ThemedText>}
-          />
-          <HintRow title="Dev tools" hint={getDevMenuHint()} />
-          <HintRow
-            title="Fresh start"
-            hint={<ThemedText type="code">npm run reset-project</ThemedText>}
-          />
-        </ThemedView>
+            <View style={styles.copy}>
+              <View style={styles.status}>
+                <View style={styles.onlineDot} />
+                <ThemedText style={styles.statusText}>
+                  Shuttle network online
+                </ThemedText>
+                <ThemedText style={styles.statusArrow}>-&gt;</ThemedText>
+              </View>
+              <ThemedText type="title" style={styles.title}>
+                UIU Shuttle{"\n"}
+                <ThemedText style={styles.titleAccent}>
+                  Tracking System
+                </ThemedText>
+              </ThemedText>
+              <ThemedText style={styles.description}>
+                Find your shuttle, check live routes, and get to United
+                International University on time.
+              </ThemedText>
 
-        {Platform.OS === 'web' && <WebBadge />}
-      </SafeAreaView>
+              <Pressable
+                accessibilityRole="button"
+                accessibilityLabel="Sign in to shuttle tracker"
+                onPress={() => router.push("/login")}
+                style={({ pressed }) => [
+                  styles.primaryButton,
+                  pressed && styles.pressed,
+                ]}
+              >
+                <ThemedText style={styles.primaryButtonText}>
+                  Sign in to tracker
+                </ThemedText>
+                <ThemedText style={styles.primaryButtonArrow}>-&gt;</ThemedText>
+              </Pressable>
+
+              <Pressable
+                accessibilityRole="button"
+                accessibilityLabel="Open Time Schedule of Shuttle Services"
+                style={({ pressed }) => [
+                  styles.secondaryButton,
+                  pressed && styles.pressed,
+                ]}
+              >
+                <ThemedText style={styles.manualIcon}>[]</ThemedText>
+                <ThemedText style={styles.secondaryButtonText}>
+                  Time Schedule of Shuttle Services
+                </ThemedText>
+              </Pressable>
+
+              <ThemedText style={styles.hint}>
+                Sign in with your UIU ID and password.
+              </ThemedText>
+            </View>
+          </View>
+
+          <View style={styles.footer}>
+            <ThemedText style={styles.footerText}>
+              © 2026 · UIU Shuttle Tracking
+            </ThemedText>
+          </View>
+        </SafeAreaView>
+      </ScrollView>
     </ThemedView>
   );
 }
@@ -64,35 +92,127 @@ export default function HomeScreen() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    justifyContent: 'center',
-    flexDirection: 'row',
+    backgroundColor: "#0D0E12",
+  },
+  scrollContent: {
+    flexGrow: 1,
   },
   safeArea: {
-    flex: 1,
-    paddingHorizontal: Spacing.four,
-    alignItems: 'center',
-    gap: Spacing.three,
-    paddingBottom: BottomTabInset + Spacing.three,
+    width: "100%",
     maxWidth: MaxContentWidth,
+    alignSelf: "center",
+    paddingHorizontal: Spacing.three,
+    flexGrow: 1,
   },
-  heroSection: {
-    alignItems: 'center',
-    justifyContent: 'center',
-    flex: 1,
-    paddingHorizontal: Spacing.four,
-    gap: Spacing.four,
+  hero: {
+    flexGrow: 1,
+  },
+  heroImage: {
+    width: "100%",
+    aspectRatio: 941 / 1179,
+    marginHorizontal: -Spacing.three,
+    marginTop: Spacing.three,
+    backgroundColor: "transparent",
+  },
+  copy: {
+    paddingTop: Spacing.four,
+    backgroundColor: "transparent",
+  },
+  status: {
+    alignSelf: "flex-start",
+    flexDirection: "row",
+    alignItems: "center",
+    gap: Spacing.one,
+    borderWidth: 1,
+    borderColor: "#303238",
+    borderRadius: 18,
+    paddingHorizontal: Spacing.two,
+    paddingVertical: Spacing.one,
+  },
+  onlineDot: {
+    width: 7,
+    height: 7,
+    borderRadius: 4,
+    backgroundColor: "#00D26A",
+  },
+  statusText: {
+    color: "#9899A0",
+    fontSize: 12,
+  },
+  statusArrow: {
+    color: "#9899A0",
+    fontSize: 14,
   },
   title: {
-    textAlign: 'center',
+    color: "#F8F8F8",
+    fontSize: 34,
+    lineHeight: 39,
+    marginTop: Spacing.three,
   },
-  code: {
-    textTransform: 'uppercase',
+  titleAccent: {
+    color: "#FF6500",
+    fontSize: 34,
+    lineHeight: 39,
   },
-  stepContainer: {
-    gap: Spacing.three,
-    alignSelf: 'stretch',
-    paddingHorizontal: Spacing.three,
-    paddingVertical: Spacing.four,
-    borderRadius: Spacing.four,
+  description: {
+    color: "#9B9A9D",
+    fontSize: 15,
+    lineHeight: 23,
+    marginTop: Spacing.two,
+  },
+  primaryButton: {
+    minHeight: 52,
+    marginTop: Spacing.four,
+    borderRadius: 28,
+    backgroundColor: "#FF6500",
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    gap: Spacing.two,
+  },
+  primaryButtonText: {
+    color: "#FFFFFF",
+    fontWeight: "700",
+  },
+  primaryButtonArrow: {
+    color: "#FFFFFF",
+    fontSize: 18,
+  },
+  secondaryButton: {
+    minHeight: 46,
+    marginTop: Spacing.two,
+    borderRadius: 24,
+    borderWidth: 1,
+    borderColor: "#3A3A3D",
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    gap: Spacing.two,
+  },
+  manualIcon: {
+    color: "#D7D7D9",
+    fontSize: 12,
+  },
+  secondaryButtonText: {
+    color: "#D7D7D9",
+  },
+  hint: {
+    color: "#7D7D83",
+    fontSize: 12,
+    marginTop: Spacing.two,
+  },
+  footer: {
+    backgroundColor: "transparent",
+    borderTopWidth: 1,
+    borderTopColor: "#2A2A2D",
+    paddingVertical: Spacing.two,
+    marginTop: Spacing.five,
+  },
+  footerText: {
+    color: "#77777D",
+    fontSize: 12,
+  },
+  pressed: {
+    opacity: 0.75,
   },
 });
