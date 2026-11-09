@@ -2,15 +2,17 @@ import 'leaflet/dist/leaflet.css';
 
 import { useEffect, useState } from 'react';
 import { Pressable, StyleSheet, View } from 'react-native';
+import { io } from 'socket.io-client';
 
 import { ThemedText } from '@/components/themed-text';
 
-const uiuLocation: [number, number] = [23.8223, 90.3654];
+const uiuLocation: [number, number] = [23.7979, 90.4497];
+const api = process.env.EXPO_PUBLIC_BACKEND_URL ?? 'http://localhost:3001';
 
 type LeafletModule = typeof import('leaflet');
 type ReactLeafletModule = typeof import('react-leaflet');
 
-export function LiveShuttleMap() {
+export function LiveShuttleMap({ routeId }: { routeId: string }) {
   const [mapModules, setMapModules] = useState<{
     leaflet: LeafletModule;
     reactLeaflet: ReactLeafletModule;
@@ -33,7 +35,7 @@ export function LiveShuttleMap() {
   }, []);
 
   const mapContent = mapModules ? (
-    <MapContent leaflet={mapModules.leaflet} reactLeaflet={mapModules.reactLeaflet} />
+    <MapContent leaflet={mapModules.leaflet} reactLeaflet={mapModules.reactLeaflet} routeId={routeId} />
   ) : (
     <View style={styles.loading}>
       <ThemedText style={styles.description}>Loading live map...</ThemedText>
@@ -45,7 +47,7 @@ export function LiveShuttleMap() {
       <View style={styles.mapHeader}>
         <View>
           <ThemedText style={styles.title}>Live shuttle location</ThemedText>
-          <ThemedText style={styles.description}>Demo location near UIU campus</ThemedText>
+          <ThemedText style={styles.description}>Driver locations update while trips are active.</ThemedText>
         </View>
         <View style={styles.liveBadge}>
           <View style={styles.liveDot} />
@@ -60,9 +62,11 @@ export function LiveShuttleMap() {
 function MapContent({
   leaflet,
   reactLeaflet,
+  routeId,
 }: {
   leaflet: LeafletModule;
   reactLeaflet: ReactLeafletModule;
+  routeId: string;
 }) {
   const { MapContainer, Marker, Popup, TileLayer } = reactLeaflet;
   const shuttleIcon = leaflet.divIcon({
@@ -79,10 +83,106 @@ function MapContent({
         url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
       />
       <Marker position={uiuLocation} icon={shuttleIcon}>
-        <Popup>UIU Shuttle · Demo GPS location</Popup>
+        <Popup>UIU campus</Popup>
       </Marker>
+      <ActiveShuttles leaflet={leaflet} reactLeaflet={reactLeaflet} routeId={routeId} />
       <LocationLayer leaflet={leaflet} reactLeaflet={reactLeaflet} />
     </MapContainer>
+  );
+}
+
+function ActiveShuttles({
+  leaflet,
+  reactLeaflet,
+  routeId,
+}: {
+  leaflet: LeafletModule;
+  reactLeaflet: ReactLeafletModule;
+  routeId: string;
+}) {
+  const { Marker, Popup } = reactLeaflet;
+  const [trips, setTrips] = useState<Array<{
+    id: string;
+    route_id: string;
+    route_name: string;
+    latitude: string | null;
+    longitude: string | null;
+    recorded_at: string | null;
+  }>>([]);
+
+  useEffect(() => {
+    let active = true;
+
+    const load = () =>
+      fetch(`${api}/trips/active`)
+        .then((response) => response.json())
+        .then((nextTrips) => {
+          if (active && Array.isArray(nextTrips)) setTrips(nextTrips);
+        })
+        .catch(() => undefined);
+
+    load();
+
+    const socket = io(`${api}/shuttle-stream`, {
+      transports: ['websocket', 'polling'],
+    });
+
+    socket.on('connect', () => {
+      if (routeId) {
+        socket.emit('joinRoute', routeId);
+      }
+    });
+
+    socket.on('shuttle:locationUpdate', (update: {
+      tripId: string;
+      routeId?: string;
+      latitude: number;
+      longitude: number;
+      recordedAt: string;
+    }) => {
+      if (!active) return;
+      setTrips((prev) =>
+        prev.map((trip) =>
+          trip.id === update.tripId
+            ? {
+                ...trip,
+                latitude: String(update.latitude),
+                longitude: String(update.longitude),
+                recorded_at: update.recordedAt,
+              }
+            : trip,
+        ),
+      );
+    });
+
+    socket.on('shuttle:statusUpdate', () => {
+      if (active) load();
+    });
+
+    return () => {
+      active = false;
+      if (routeId) {
+        socket.emit('leaveRoute', routeId);
+      }
+      socket.disconnect();
+    };
+  }, [routeId]);
+
+  const driverIcon = leaflet.divIcon({
+    className: 'uiu-driver-marker',
+    html: '<span style="display:block;width:16px;height:16px;border:3px solid #FFFFFF;border-radius:50%;background:#20C978;box-shadow:0 0 0 5px rgba(32,201,120,0.3),0 2px 8px rgba(0,0,0,0.45);"></span>',
+    iconSize: [22, 22],
+    iconAnchor: [11, 11],
+  });
+
+  return (
+    <>
+      {trips.filter((trip) => trip.route_id === routeId && trip.latitude && trip.longitude).map((trip) => (
+        <Marker key={trip.id} position={[Number(trip.latitude), Number(trip.longitude)]} icon={driverIcon}>
+          <Popup>Driver live location · {trip.route_name}</Popup>
+        </Marker>
+      ))}
+    </>
   );
 }
 

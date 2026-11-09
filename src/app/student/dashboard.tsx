@@ -1,5 +1,7 @@
+import AsyncStorage from "@react-native-async-storage/async-storage";
 import { Image } from "expo-image";
 import { router } from "expo-router";
+import { useLocalSearchParams } from "expo-router";
 import { useEffect, useRef, useState } from "react";
 import {
   Animated,
@@ -16,6 +18,57 @@ import { ThemedView } from "@/components/themed-view";
 import { MaxContentWidth, Spacing } from "@/constants/theme";
 
 export default function StudentDashboard() {
+  const { studentId } = useLocalSearchParams<{ studentId: string }>();
+  const [routes, setRoutes] = useState<Array<{ id: string; name: string }>>([]);
+  const [locationMessage, setLocationMessage] = useState("Location sharing is off");
+  const [token, setToken] = useState<string | null>(null);
+
+  useEffect(() => {
+    AsyncStorage.getItem("uiu_shuttle_token").then((savedToken) => {
+      setToken(savedToken);
+    });
+  }, []);
+
+  useEffect(() => {
+    if (!studentId || typeof navigator === "undefined" || !navigator.geolocation) {
+      return;
+    }
+    const watchId = navigator.geolocation.watchPosition(
+      ({ coords }) => {
+        void fetch(`${process.env.EXPO_PUBLIC_BACKEND_URL ?? "http://localhost:3001"}/students/location`, {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            ...(token ? { Authorization: `Bearer ${token}` } : {}),
+          },
+          body: JSON.stringify({
+            studentId,
+            latitude: coords.latitude,
+            longitude: coords.longitude,
+            ...(Number.isFinite(coords.accuracy) && coords.accuracy >= 0
+              ? { accuracyMeters: coords.accuracy }
+              : {}),
+          }),
+        })
+          .then((response) => {
+            setLocationMessage(response.ok ? "Your location is shared live" : "Unable to share your location");
+          })
+          .catch(() => setLocationMessage("Unable to connect to location service"));
+      },
+      () => setLocationMessage("Location permission was denied"),
+      { enableHighAccuracy: true, maximumAge: 5_000, timeout: 15_000 },
+    );
+    setLocationMessage("Requesting location permission...");
+    return () => navigator.geolocation.clearWatch(watchId);
+  }, [studentId, token]);
+
+  useEffect(() => {
+    fetch(`${process.env.EXPO_PUBLIC_BACKEND_URL ?? "http://localhost:3001"}/routes`)
+      .then((response) => response.json())
+      .then((items: { id: string; name: string }[]) => setRoutes(items))
+      .catch(() => setRoutes([]));
+  }, []);
+
   return (
     <ThemedView style={styles.container}>
       <Image
@@ -59,12 +112,12 @@ export default function StudentDashboard() {
               <ThemedText style={styles.cardDescription}>
                 Track your next UIU shuttle and plan your trip with confidence.
               </ThemedText>
+              <ThemedText style={styles.locationStatus}>{locationMessage}</ThemedText>
             </View>
           </View>
 
           <View style={styles.mapArea}>
-            <RouteSelector />
-            <LiveShuttleMap />
+            <RouteSelector routes={routes} />
           </View>
 
           <View style={styles.sectionHeader}>
@@ -102,17 +155,15 @@ export default function StudentDashboard() {
   );
 }
 
-function RouteSelector() {
-  const [selectedRoute, setSelectedRoute] = useState("Kuril");
+function RouteSelector({ routes }: { routes: Array<{ id: string; name: string }> }) {
+  const [selectedRouteId, setSelectedRouteId] = useState("");
   const [routeMenuOpen, setRouteMenuOpen] = useState(false);
   const animation = useRef(new Animated.Value(0)).current;
-  const routes = [
-    "Kuril",
-    "Natun Bazar",
-    "Aftabnagar",
-    "Bashundhara",
-    "UIU Campus",
-  ];
+  useEffect(() => {
+    if (!selectedRouteId && routes.length) setSelectedRouteId(routes[0].id);
+  }, [routes, selectedRouteId]);
+
+  const selectedRoute = routes.find((route) => route.id === selectedRouteId);
 
   useEffect(() => {
     Animated.parallel([
@@ -130,7 +181,7 @@ function RouteSelector() {
         <ThemedText style={styles.cardLabel}>SELECT YOUR ROUTE</ThemedText>
         <Pressable
           accessibilityRole="button"
-          accessibilityLabel={`Selected route: ${selectedRoute}`}
+          accessibilityLabel={`Selected route: ${selectedRoute?.name ?? "None"}`}
           accessibilityState={{ expanded: routeMenuOpen }}
           onPress={() => setRouteMenuOpen((open) => !open)}
           style={({ pressed }) => [
@@ -139,7 +190,7 @@ function RouteSelector() {
           ]}
         >
           <ThemedText style={styles.routeSelectorText}>
-            {selectedRoute}
+            {selectedRoute?.name ?? "Select a route"}
           </ThemedText>
           <Animated.Text
             style={[
@@ -186,32 +237,33 @@ function RouteSelector() {
           {routes.map((route) => (
             <Pressable
               accessibilityRole="menuitem"
-              key={route}
+              key={route.id}
               onPress={() => {
-                setSelectedRoute(route);
+                setSelectedRouteId(route.id);
                 setRouteMenuOpen(false);
               }}
               style={({ pressed }) => [
                 styles.routeOption,
-                route === selectedRoute && styles.selectedRouteOption,
+                route.id === selectedRouteId && styles.selectedRouteOption,
                 pressed && styles.pressed,
               ]}
             >
               <ThemedText
                 style={[
                   styles.routeOptionText,
-                  route === selectedRoute && styles.selectedRouteOptionText,
+                  route.id === selectedRouteId && styles.selectedRouteOptionText,
                 ]}
               >
-                {route}
+                {route.name}
               </ThemedText>
-              {route === selectedRoute && (
+              {route.id === selectedRouteId && (
                 <ThemedText style={styles.checkmark}>✓</ThemedText>
               )}
             </Pressable>
           ))}
         </Animated.View>
       </View>
+      <LiveShuttleMap routeId={selectedRouteId} />
     </View>
   );
 }
@@ -407,6 +459,11 @@ const styles = StyleSheet.create({
     fontSize: 13,
     lineHeight: 19,
     marginTop: Spacing.one,
+  },
+  locationStatus: {
+    color: "#7DE2A8",
+    fontSize: 12,
+    marginTop: 8,
   },
   sectionHeader: {
     flexDirection: "row",

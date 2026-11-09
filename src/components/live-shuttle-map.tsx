@@ -2,7 +2,7 @@ import { StyleSheet, View } from 'react-native';
 
 import { ThemedText } from '@/components/themed-text';
 
-export function LiveShuttleMap() {
+export function LiveShuttleMap({ routeId: _routeId }: { routeId: string }) {
   return (
     <View style={styles.fallback}>
       <ThemedText style={styles.title}>Live map is available on web</ThemedText>
