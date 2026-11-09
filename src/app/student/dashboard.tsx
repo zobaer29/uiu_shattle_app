@@ -13,6 +13,7 @@ import {
 import { SafeAreaView } from "react-native-safe-area-context";
 
 import { LiveShuttleMap } from "@/components/live-shuttle-map";
+import { ScheduleModal } from "@/components/schedule-modal";
 import { ThemedText } from "@/components/themed-text";
 import { ThemedView } from "@/components/themed-view";
 import { MaxContentWidth, Spacing } from "@/constants/theme";
@@ -22,6 +23,7 @@ export default function StudentDashboard() {
   const [routes, setRoutes] = useState<Array<{ id: string; name: string }>>([]);
   const [locationMessage, setLocationMessage] = useState("Location sharing is off");
   const [token, setToken] = useState<string | null>(null);
+  const [scheduleModalVisible, setScheduleModalVisible] = useState(false);
 
   useEffect(() => {
     AsyncStorage.getItem("uiu_shuttle_token").then((savedToken) => {
@@ -116,6 +118,34 @@ export default function StudentDashboard() {
             </View>
           </View>
 
+          {/* Official Schedule PDF Banner */}
+          <Pressable
+            accessibilityRole="button"
+            accessibilityLabel="Open Time Schedule of Shuttle Services PDF and departures"
+            onPress={() => setScheduleModalVisible(true)}
+            style={({ pressed }) => [
+              styles.scheduleBanner,
+              pressed && styles.pressed,
+            ]}
+          >
+            <View style={styles.scheduleBannerIcon}>
+              <ThemedText style={styles.scheduleBannerIconText}>📄</ThemedText>
+            </View>
+            <View style={styles.scheduleBannerCopy}>
+              <View style={styles.scheduleBannerBadgeRow}>
+                <ThemedText style={styles.scheduleBannerBadge}>OFFICIAL TIMETABLE</ThemedText>
+                <ThemedText style={styles.scheduleBannerLiveBadge}>PDF Available</ThemedText>
+              </View>
+              <ThemedText style={styles.scheduleBannerTitle}>
+                Time Schedule of Shuttle Services
+              </ThemedText>
+              <ThemedText style={styles.scheduleBannerSub}>
+                View departures or download the official admin circular PDF
+              </ThemedText>
+            </View>
+            <ThemedText style={styles.scheduleBannerArrow}>→</ThemedText>
+          </Pressable>
+
           <View style={styles.mapArea}>
             <RouteSelector routes={routes} />
           </View>
@@ -124,7 +154,7 @@ export default function StudentDashboard() {
             <ThemedText type="subtitle" style={styles.sectionTitle}>
               Quick access
             </ThemedText>
-            <ThemedText style={styles.sectionHint}>Coming soon</ThemedText>
+            <ThemedText style={styles.sectionHint}>Live services</ThemedText>
           </View>
 
           <View style={styles.grid}>
@@ -137,6 +167,7 @@ export default function StudentDashboard() {
               title="Schedule"
               description="Check route departure times"
               icon="◷"
+              onPress={() => setScheduleModalVisible(true)}
             />
             <DashboardCard
               title="My routes"
@@ -151,6 +182,11 @@ export default function StudentDashboard() {
           </View>
         </SafeAreaView>
       </ScrollView>
+
+      <ScheduleModal
+        visible={scheduleModalVisible}
+        onClose={() => setScheduleModalVisible(false)}
+      />
     </ThemedView>
   );
 }
@@ -272,13 +308,23 @@ function DashboardCard({
   title,
   description,
   icon,
+  onPress,
 }: {
   title: string;
   description: string;
   icon: string;
+  onPress?: () => void;
 }) {
   return (
-    <View style={styles.dashboardCard}>
+    <Pressable
+      accessibilityRole="button"
+      onPress={onPress}
+      style={({ pressed }) => [
+        styles.dashboardCard,
+        onPress && styles.interactiveCard,
+        pressed && styles.pressed,
+      ]}
+    >
       <View style={styles.cardIcon}>
         <ThemedText style={styles.cardIconText}>{icon}</ThemedText>
       </View>
@@ -286,7 +332,7 @@ function DashboardCard({
       <ThemedText style={styles.dashboardCardDescription}>
         {description}
       </ThemedText>
-    </View>
+    </Pressable>
   );
 }
 
@@ -358,6 +404,70 @@ const styles = StyleSheet.create({
     backgroundColor: "rgba(20, 24, 34, 0.9)",
     borderWidth: 1,
     borderColor: "rgba(255, 255, 255, 0.14)",
+  },
+  scheduleBanner: {
+    flexDirection: "row",
+    alignItems: "center",
+    marginTop: Spacing.three,
+    padding: Spacing.three,
+    borderRadius: 18,
+    backgroundColor: "rgba(25, 30, 46, 0.92)",
+    borderWidth: 1,
+    borderColor: "rgba(255, 101, 0, 0.4)",
+  },
+  scheduleBannerIcon: {
+    width: 44,
+    height: 44,
+    borderRadius: 14,
+    backgroundColor: "rgba(255, 101, 0, 0.15)",
+    borderWidth: 1,
+    borderColor: "rgba(255, 101, 0, 0.3)",
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  scheduleBannerIconText: {
+    fontSize: 20,
+  },
+  scheduleBannerCopy: {
+    flex: 1,
+    marginLeft: Spacing.three,
+  },
+  scheduleBannerBadgeRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 6,
+    marginBottom: 2,
+  },
+  scheduleBannerBadge: {
+    color: "#FF8A45",
+    fontSize: 10,
+    fontWeight: "800",
+    letterSpacing: 0.8,
+  },
+  scheduleBannerLiveBadge: {
+    color: "#34D399",
+    fontSize: 10,
+    fontWeight: "700",
+    backgroundColor: "rgba(52, 211, 153, 0.14)",
+    paddingHorizontal: 6,
+    paddingVertical: 1,
+    borderRadius: 4,
+  },
+  scheduleBannerTitle: {
+    color: "#FFFFFF",
+    fontSize: 15,
+    fontWeight: "700",
+  },
+  scheduleBannerSub: {
+    color: "#9CA3AF",
+    fontSize: 12,
+    marginTop: 2,
+  },
+  scheduleBannerArrow: {
+    color: "#FF8A45",
+    fontSize: 18,
+    fontWeight: "700",
+    marginLeft: Spacing.two,
   },
   mapArea: {
     marginTop: Spacing.three,
@@ -494,6 +604,9 @@ const styles = StyleSheet.create({
     backgroundColor: "rgba(20, 24, 34, 0.86)",
     borderWidth: 1,
     borderColor: "rgba(255, 255, 255, 0.12)",
+  },
+  interactiveCard: {
+    borderColor: "rgba(255, 101, 0, 0.35)",
   },
   cardIcon: {
     width: 36,

@@ -1,14 +1,17 @@
 import { Image } from "expo-image";
 import { router } from "expo-router";
+import { useState } from "react";
 import { Pressable, ScrollView, StyleSheet, View } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 
 import { Navbar } from "@/components/navbar";
+import { ScheduleModal } from "@/components/schedule-modal";
 import { ThemedText } from "@/components/themed-text";
 import { ThemedView } from "@/components/themed-view";
 import { MaxContentWidth, Spacing } from "@/constants/theme";
 
 export default function HomeScreen() {
+  const [scheduleModalVisible, setScheduleModalVisible] = useState(false);
   return (
     <ThemedView style={styles.container}>
       <ScrollView contentContainerStyle={styles.scrollContent}>
@@ -61,12 +64,13 @@ export default function HomeScreen() {
               <Pressable
                 accessibilityRole="button"
                 accessibilityLabel="Open Time Schedule of Shuttle Services"
+                onPress={() => setScheduleModalVisible(true)}
                 style={({ pressed }) => [
                   styles.secondaryButton,
                   pressed && styles.pressed,
                 ]}
               >
-                <ThemedText style={styles.manualIcon}>[]</ThemedText>
+                <ThemedText style={styles.manualIcon}>📄</ThemedText>
                 <ThemedText style={styles.secondaryButtonText}>
                   Time Schedule of Shuttle Services
                 </ThemedText>
@@ -85,6 +89,11 @@ export default function HomeScreen() {
           </View>
         </SafeAreaView>
       </ScrollView>
+
+      <ScheduleModal
+        visible={scheduleModalVisible}
+        onClose={() => setScheduleModalVisible(false)}
+      />
     </ThemedView>
   );
 }
