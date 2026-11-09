@@ -1,6 +1,7 @@
 import { Image } from "expo-image";
+import * as Location from "expo-location";
 import { router } from "expo-router";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { Pressable, ScrollView, StyleSheet, View } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 
@@ -12,6 +13,11 @@ import { MaxContentWidth, Spacing } from "@/constants/theme";
 
 export default function HomeScreen() {
   const [scheduleModalVisible, setScheduleModalVisible] = useState(false);
+
+  useEffect(() => {
+    // Request native location permission as soon as the app opens
+    Location.requestForegroundPermissionsAsync().catch(() => undefined);
+  }, []);
   return (
     <ThemedView style={styles.container}>
       <ScrollView contentContainerStyle={styles.scrollContent}>

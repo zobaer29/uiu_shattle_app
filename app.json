@@ -1,6 +1,6 @@
 {
   "expo": {
-    "name": "uiu_shattle",
+    "name": "UIU Shuttle",
     "slug": "uiu_shattle",
     "version": "1.0.0",
     "orientation": "portrait",
@@ -13,11 +13,18 @@
     "android": {
       "package": "com.uiushuttle.app",
       "adaptiveIcon": {
-        "backgroundColor": "#E6F4FE",
+        "backgroundColor": "#0D0E12",
         "foregroundImage": "./assets/images/android-icon-foreground.png",
         "backgroundImage": "./assets/images/android-icon-background.png",
         "monochromeImage": "./assets/images/android-icon-monochrome.png"
       },
+      "permissions": [
+        "ACCESS_COARSE_LOCATION",
+        "ACCESS_FINE_LOCATION",
+        "ACCESS_BACKGROUND_LOCATION",
+        "FOREGROUND_SERVICE",
+        "FOREGROUND_SERVICE_LOCATION"
+      ],
       "predictiveBackGestureEnabled": false
     },
     "web": {
@@ -29,9 +36,19 @@
       [
         "expo-splash-screen",
         {
-          "backgroundColor": "#208AEF",
+          "backgroundColor": "#0D0E12",
           "image": "./assets/images/splash-icon.png",
-          "imageWidth": 76
+          "imageWidth": 120
+        }
+      ],
+      [
+        "expo-location",
+        {
+          "locationAlwaysAndWhenInUsePermission": "Allow UIU Shuttle to access your location to track shuttle buses and your campus commute in real-time.",
+          "locationAlwaysPermission": "Allow UIU Shuttle to access your location in the background to track your shuttle commute.",
+          "locationWhenInUsePermission": "Allow UIU Shuttle to access your location to see nearby shuttle buses and your position on the map.",
+          "isAndroidBackgroundLocationEnabled": true,
+          "isAndroidForegroundServiceEnabled": true
         }
       ]
     ],

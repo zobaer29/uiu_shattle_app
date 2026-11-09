@@ -1,5 +1,6 @@
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { Image } from "expo-image";
+import * as Location from "expo-location";
 import { router } from "expo-router";
 import { useLocalSearchParams } from "expo-router";
 import { useEffect, useRef, useState } from "react";
@@ -32,36 +33,71 @@ export default function StudentDashboard() {
   }, []);
 
   useEffect(() => {
-    if (!studentId || typeof navigator === "undefined" || !navigator.geolocation) {
+    if (!studentId) {
       return;
     }
-    const watchId = navigator.geolocation.watchPosition(
-      ({ coords }) => {
-        void fetch(`${process.env.EXPO_PUBLIC_BACKEND_URL ?? "http://localhost:3001"}/students/location`, {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-            ...(token ? { Authorization: `Bearer ${token}` } : {}),
+
+    let subscriber: Location.LocationSubscription | null = null;
+    let isActive = true;
+
+    async function setupLocation() {
+      try {
+        setLocationMessage("Requesting location permission...");
+        const { status } = await Location.requestForegroundPermissionsAsync();
+        if (status !== "granted") {
+          if (isActive) setLocationMessage("Location permission was denied");
+          return;
+        }
+
+        if (isActive) setLocationMessage("Your location is shared live");
+
+        subscriber = await Location.watchPositionAsync(
+          {
+            accuracy: Location.Accuracy.High,
+            timeInterval: 5000,
+            distanceInterval: 10,
           },
-          body: JSON.stringify({
-            studentId,
-            latitude: coords.latitude,
-            longitude: coords.longitude,
-            ...(Number.isFinite(coords.accuracy) && coords.accuracy >= 0
-              ? { accuracyMeters: coords.accuracy }
-              : {}),
-          }),
-        })
-          .then((response) => {
-            setLocationMessage(response.ok ? "Your location is shared live" : "Unable to share your location");
-          })
-          .catch(() => setLocationMessage("Unable to connect to location service"));
-      },
-      () => setLocationMessage("Location permission was denied"),
-      { enableHighAccuracy: true, maximumAge: 5_000, timeout: 15_000 },
-    );
-    setLocationMessage("Requesting location permission...");
-    return () => navigator.geolocation.clearWatch(watchId);
+          (loc) => {
+            if (!isActive) return;
+            const api = process.env.EXPO_PUBLIC_BACKEND_URL ?? "http://localhost:3001";
+            fetch(`${api}/students/location`, {
+              method: "POST",
+              headers: {
+                "Content-Type": "application/json",
+                ...(token ? { Authorization: `Bearer ${token}` } : {}),
+              },
+              body: JSON.stringify({
+                studentId,
+                latitude: loc.coords.latitude,
+                longitude: loc.coords.longitude,
+                ...(Number.isFinite(loc.coords.accuracy) && loc.coords.accuracy !== null && loc.coords.accuracy >= 0
+                  ? { accuracyMeters: loc.coords.accuracy }
+                  : {}),
+              }),
+            })
+              .then((response) => {
+                if (isActive) {
+                  setLocationMessage(response.ok ? "Your location is shared live" : "Unable to share your location");
+                }
+              })
+              .catch(() => {
+                if (isActive) setLocationMessage("Unable to connect to location service");
+              });
+          },
+        );
+      } catch {
+        if (isActive) setLocationMessage("Unable to connect to location service");
+      }
+    }
+
+    setupLocation();
+
+    return () => {
+      isActive = false;
+      if (subscriber) {
+        subscriber.remove();
+      }
+    };
   }, [studentId, token]);
 
   useEffect(() => {

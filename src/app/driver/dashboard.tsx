@@ -1,4 +1,5 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import * as Location from 'expo-location';
 import { router } from 'expo-router';
 import { useLocalSearchParams } from 'expo-router';
 import { useEffect, useState } from 'react';
@@ -57,34 +58,66 @@ export default function DriverDashboard() {
   }, [api, dispatch, driverId, hydrated]);
 
   useEffect(() => {
-    if (!tripId || typeof navigator === 'undefined' || !navigator.geolocation) return;
-    const watchId = navigator.geolocation.watchPosition(
-      ({ coords }) => {
-        const payload = {
-          latitude: coords.latitude,
-          longitude: coords.longitude,
-          ...(Number.isFinite(coords.accuracy) && coords.accuracy >= 0
-            ? { accuracyMeters: coords.accuracy }
-            : {}),
-        };
-        void fetch(`${api}/trips/${tripId}/location`, {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-            ...(token ? { Authorization: `Bearer ${token}` } : {}),
+    if (!tripId) return;
+
+    let subscriber: Location.LocationSubscription | null = null;
+    let isActive = true;
+
+    async function startDriverTracking() {
+      try {
+        const { status } = await Location.requestForegroundPermissionsAsync();
+        if (status !== 'granted') {
+          if (isActive) setMessage('Trip started, but location permission was denied.');
+          return;
+        }
+
+        subscriber = await Location.watchPositionAsync(
+          {
+            accuracy: Location.Accuracy.High,
+            timeInterval: 4000,
+            distanceInterval: 5,
           },
-          body: JSON.stringify(payload),
-        }).then(async (response) => {
-          if (!response.ok) {
-            const result = await response.json().catch(() => null);
-            setMessage(result?.message?.join?.(', ') ?? 'Unable to send location update.');
-          }
-        }).catch(() => setMessage('Unable to connect to the location service.'));
-      },
-      () => setMessage('Trip started, but location permission was denied.'),
-      { enableHighAccuracy: true, maximumAge: 5000, timeout: 15000 },
-    );
-    return () => navigator.geolocation.clearWatch(watchId);
+          (loc) => {
+            if (!isActive) return;
+            const payload = {
+              latitude: loc.coords.latitude,
+              longitude: loc.coords.longitude,
+              ...(Number.isFinite(loc.coords.accuracy) && loc.coords.accuracy !== null && loc.coords.accuracy >= 0
+                ? { accuracyMeters: loc.coords.accuracy }
+                : {}),
+            };
+            fetch(`${api}/trips/${tripId}/location`, {
+              method: 'POST',
+              headers: {
+                'Content-Type': 'application/json',
+                ...(token ? { Authorization: `Bearer ${token}` } : {}),
+              },
+              body: JSON.stringify(payload),
+            })
+              .then(async (response) => {
+                if (!response.ok && isActive) {
+                  const result = await response.json().catch(() => null);
+                  setMessage(result?.message?.join?.(', ') ?? 'Unable to send location update.');
+                }
+              })
+              .catch(() => {
+                if (isActive) setMessage('Unable to connect to the location service.');
+              });
+          },
+        );
+      } catch {
+        if (isActive) setMessage('Unable to start GPS tracking on device.');
+      }
+    }
+
+    startDriverTracking();
+
+    return () => {
+      isActive = false;
+      if (subscriber) {
+        subscriber.remove();
+      }
+    };
   }, [api, token, tripId]);
 
   async function toggleTrip() {
